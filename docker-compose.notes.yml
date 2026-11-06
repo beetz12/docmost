@@ -1,0 +1,58 @@
+# Notes fork (beetz12/docmost): local stack built from this checkout.
+# Portable between the MacBook and the Mac Ultra. Ports bind to BIND_ADDR
+# (default 127.0.0.1), so nothing is reachable from outside the machine
+# unless you set BIND_ADDR on purpose (e.g. the Tailscale IP). Never 0.0.0.0
+# on a machine with a public interface.
+#
+# First run:  scripts/notes/init-env.sh && docker compose -f docker-compose.notes.yml up -d --build
+name: notes
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: notes-docmost:local
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://docmost:${POSTGRES_PASSWORD}@db:5432/docmost
+      REDIS_URL: redis://redis:6379
+      DISABLE_TELEMETRY: 'true'
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${APP_PORT:-3000}:3000"
+    restart: unless-stopped
+    volumes:
+      - storage:/app/data/storage
+
+  db:
+    # Postgres 18 with the pgvector extension available (used by semantic search, P1-4).
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: docmost
+      POSTGRES_USER: docmost
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docmost -d docmost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/postgresql
+
+  redis:
+    image: redis:8
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+volumes:
+  storage:
+  db_data:
+  redis_data:
