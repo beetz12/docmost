@@ -17,6 +17,7 @@ import { useAtomValue } from "jotai";
 import { workspaceAtom } from "@/features/user/atoms/current-user-atom.ts";
 import { hintVectorCache } from "@/ee/ai/services/ai-search-service.ts";
 import { getAiVectorDriver } from "@/lib/config.ts";
+import { JournalSpotlightActions } from "@/notes/journal/journal-spotlight-actions.tsx";
 
 interface SearchSpotlightProps {
   spaceId?: string;
@@ -232,6 +233,8 @@ export function SearchSpotlight({ spaceId }: SearchSpotlightProps) {
             </>
           ) : (
             <>
+              <JournalSpotlightActions query={query} />
+
               {query.length === 0 && !isFilterBrowse && resultItems.length === 0 && (
                 <Spotlight.Empty>{t("Start typing to search...")}</Spotlight.Empty>
               )}

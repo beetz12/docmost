@@ -18,6 +18,7 @@ import {
   IconStarFilled,
   IconTrash,
   IconWifiOff,
+  IconCalendarEvent,
 } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import type { Content } from "@tiptap/react";
@@ -72,6 +73,7 @@ export default function PageHeaderMenu({ readOnly }: PageHeaderMenuProps) {
   const { t } = useTranslation();
   const commentsTriggerProps = useAsideTriggerProps("comments");
   const tocTriggerProps = useAsideTriggerProps("toc");
+  const journalTriggerProps = useAsideTriggerProps("journal");
   const { pageSlug } = useParams();
   const { data: page } = usePageQuery({
     pageId: extractPageSlugId(pageSlug),
@@ -138,6 +140,19 @@ export default function PageHeaderMenu({ readOnly }: PageHeaderMenuProps) {
             {...tocTriggerProps}
           >
             <IconList size={20} stroke={2} />
+          </ActionIcon>
+        </Tooltip>
+      )}
+
+      {!page?.isBase && (
+        <Tooltip label={t("Journal")} openDelay={250} withArrow>
+          <ActionIcon
+            variant="subtle"
+            color="dark"
+            aria-label={t("Journal")}
+            {...journalTriggerProps}
+          >
+            <IconCalendarEvent size={20} stroke={2} />
           </ActionIcon>
         </Tooltip>
       )}

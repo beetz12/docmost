@@ -8,6 +8,7 @@ import {
   IconSettings,
   IconUserPlus,
   IconTemplate,
+  IconNotebook,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./global-sidebar.module.css";
@@ -35,6 +36,7 @@ export default function GlobalSidebar() {
   const upgradeLabel = useUpgradeLabel();
   const mainNavItems = [
     { label: "Home", icon: IconHome, path: "/home" },
+    { label: "Journal", icon: IconNotebook, path: "/journal" },
     { label: "Favorites", icon: IconStar, path: "/favorites" },
     { label: "Spaces", icon: IconLayoutGrid, path: "/spaces" },
     {

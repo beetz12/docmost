@@ -11,6 +11,7 @@ import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
 import { PagePermissionRepo } from '@docmost/db/repos/page/page-permission.repo';
 import { executeTx } from '@docmost/db/utils';
+import { generateJitteredKeyBetween } from 'fractional-indexing-jittered';
 import { User } from '@docmost/db/types/entity.types';
 import { PageService } from '../../core/page/services/page.service';
 import { PageAccessService } from '../../core/page/page-access/page-access.service';
@@ -200,6 +201,8 @@ export class JournalService {
         trx,
       );
 
+      await this.placeByDate(ntrx, page.id, parentPageId, date);
+
       const createdAt = journalCreatedAt(date, today ?? date);
       if (createdAt) {
         await trx
@@ -231,6 +234,43 @@ export class JournalService {
       created: true,
       conflict: created.length > 1,
     };
+  }
+
+  /**
+   * Moves a new journal so the "Journal" page lists journals newest first:
+   * right before the first sibling journal with an earlier date.
+   */
+  private async placeByDate(
+    trx: NotesTrx,
+    pageId: string,
+    parentPageId: string,
+    date: string,
+  ) {
+    const siblings = await trx
+      .selectFrom('pages as p')
+      .leftJoin('notesJournals as j', 'j.pageId', 'p.id')
+      .select([
+        'p.id',
+        'p.position',
+        sql<string | null>`to_char(j.journal_date, 'YYYY-MM-DD')`.as('journalDate'),
+      ])
+      .where('p.parentPageId', '=', parentPageId)
+      .where('p.deletedAt', 'is', null)
+      .where('p.id', '!=', pageId)
+      .orderBy(sql`p.position collate "C"`)
+      .execute();
+    const idx = siblings.findIndex(
+      (s) => s.journalDate !== null && s.journalDate < date,
+    );
+    if (idx === -1) return; // oldest: stays at the end
+    const before = idx > 0 ? siblings[idx - 1].position : null;
+    const after = siblings[idx].position;
+    try {
+      const position = generateJitteredKeyBetween(before, after);
+      await trx.updateTable('pages').set({ position }).where('id', '=', pageId).execute();
+    } catch {
+      // positions out of order (manual drag): keep the default placement
+    }
   }
 
   /** Days in a month that have journals, with conflict and empty flags. */

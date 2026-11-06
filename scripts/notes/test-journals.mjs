@@ -136,6 +136,20 @@ await check('day activity lists other pages edited today, not journals', async (
   assert.ok(!ids.includes(todayPage.id));
 });
 
+await check('journals under the Journal page are ordered newest first', async () => {
+  const base = shiftDate(today, -1000 - Math.floor(Math.random() * 500));
+  const dates = [shiftDate(base, 2), shiftDate(base, 0), shiftDate(base, 1)];
+  let parentId;
+  for (const d of dates) {
+    const r = await call('/notes/journals/open', { date: d, today });
+    const info = await call('/pages/info', { pageId: r.page.id });
+    parentId = info.parentPageId;
+  }
+  const res = await call('/pages/sidebar-pages', { spaceId: todayPage.spaceId, pageId: parentId, limit: 100 });
+  const titles = (res.items ?? res).map((p) => p.title).filter((t) => dates.includes(t));
+  assert.deepEqual(titles, [...dates].sort().reverse());
+});
+
 await check('invalid dates are rejected', async () => {
   await assert.rejects(call('/notes/journals/open', { date: '2026-02-30', today }));
 });

@@ -26,6 +26,8 @@ const PageDetailsAside = lazy(() =>
   ),
 );
 
+const JournalAside = lazy(() => import("@/notes/journal/journal-aside.tsx"));
+
 export default function Aside() {
   const [{ tab, isAsideOpen }, setAsideState] = useAtom(asideStateAtom);
   const { t } = useTranslation();
@@ -52,6 +54,10 @@ export default function Aside() {
     case "chat":
       component = <AsideChatPanel />;
       title = "AI Chat";
+      break;
+    case "journal":
+      component = <JournalAside />;
+      title = "Journal";
       break;
     case "details":
       component = <PageDetailsAside />;

@@ -84,6 +84,12 @@ const TemplateEditor = lazyWithPrefetch(
   () => import("@/ee/template/pages/template-editor"),
 );
 const FavoritesPage = lazyWithPrefetch(() => import("@/pages/favorites/favorites-page"));
+// notes fork
+const JournalsPage = lazyWithPrefetch(() => import("@/notes/journal/journals-page"));
+const NotesSettingsPage = lazyWithPrefetch(() => import("@/notes/settings/notes-settings-page"));
+const JournalTodayRedirect = lazyWithPrefetch(() =>
+  import("@/notes/journal/journal-hotkey").then((m) => ({ default: m.JournalTodayRedirect })),
+);
 const AiChat = lazyWithPrefetch(() => import("@/ee/ai-chat/pages/ai-chat.tsx"));
 const VerifyEmail = lazyWithPrefetch(() => import("@/ee/pages/verify-email.tsx"));
 const LabelPage = lazyWithPrefetch(() => import("@/pages/label/label-page"));
@@ -174,6 +180,8 @@ export default function App() {
           <Route path={"/ai/chat/:chatId"} element={<AiChat />} />
           <Route path={"/spaces"} element={<SpacesPage />} />
           <Route path={"/favorites"} element={<FavoritesPage />} />
+          <Route path={"/journal"} element={<JournalTodayRedirect />} />
+          <Route path={"/journals"} element={<JournalsPage />} />
           <Route path={"/labels/:labelName"} element={<LabelPage />} />
           <Route path={"/templates"} element={<TemplateList />} />
           <Route
@@ -196,6 +204,7 @@ export default function App() {
               element={<AccountPreferences />}
             />
             <Route path={"account/api-keys"} element={<UserApiKeys />} />
+            <Route path={"notes"} element={<NotesSettingsPage />} />
             <Route
               path={"account/api-keys/authorized-apps"}
               element={<UserApiKeys />}
