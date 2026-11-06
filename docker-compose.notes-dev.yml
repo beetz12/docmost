@@ -1,0 +1,25 @@
+# Dev-only Postgres (pgvector) + Redis for running the server from source and for tests.
+# Separate project and volumes from docker-compose.notes.yml, so dev work never touches the real workspace.
+# Usage: docker compose -f docker-compose.notes-dev.yml up -d
+#        then run the server with scripts/notes/dev.sh
+name: notes-dev
+
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: docmost
+      POSTGRES_USER: docmost
+      POSTGRES_PASSWORD: devpassword
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql
+
+  redis:
+    image: redis:8
+    ports:
+      - "127.0.0.1:6380:6379"
+
+volumes:
+  db_data:
