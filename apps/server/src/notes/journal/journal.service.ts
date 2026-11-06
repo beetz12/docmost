@@ -9,6 +9,7 @@ import { sql } from 'kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { PageRepo } from '@docmost/db/repos/page/page.repo';
 import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
+import { PagePermissionRepo } from '@docmost/db/repos/page/page-permission.repo';
 import { executeTx } from '@docmost/db/utils';
 import { User } from '@docmost/db/types/entity.types';
 import { PageService } from '../../core/page/services/page.service';
@@ -56,6 +57,7 @@ export class JournalService {
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly spaceMemberRepo: SpaceMemberRepo,
     private readonly settingsService: NotesSettingsService,
+    private readonly pagePermissionRepo: PagePermissionRepo,
   ) {
     this.db = db as unknown as NotesKysely;
   }
@@ -110,6 +112,21 @@ export class JournalService {
     };
   }
 
+  /** Drops rows the user cannot view because of page-level restrictions (space membership is not enough). */
+  private async onlyViewable<T extends { id: string }>(
+    user: User,
+    rows: T[],
+  ): Promise<T[]> {
+    if (rows.length === 0) return rows;
+    const allowed = new Set(
+      await this.pagePermissionRepo.filterAccessiblePageIds({
+        pageIds: rows.map((r) => r.id),
+        userId: user.id,
+      }),
+    );
+    return rows.filter((r) => allowed.has(r.id));
+  }
+
   /** All of the user's journal pages for one date (more than one means a conflict). */
   async getByDate(
     user: User,
@@ -121,7 +138,7 @@ export class JournalService {
       .where('j.journalDate', '=', date as any)
       .orderBy('p.createdAt', 'asc')
       .execute();
-    return rows.map((r) => this.toRef(r));
+    return (await this.onlyViewable(user, rows)).map((r) => this.toRef(r));
   }
 
   /**
@@ -223,7 +240,8 @@ export class JournalService {
     const rows = await this.journalsQuery(user, workspaceId)
       .where('j.journalDate', '>=', range.start as any)
       .where('j.journalDate', '<=', range.end as any)
-      .execute();
+      .execute()
+      .then((r) => this.onlyViewable(user, r));
 
     const byDate = new Map<string, JournalPageRef[]>();
     for (const r of rows) {
@@ -257,7 +275,8 @@ export class JournalService {
       .orderBy('p.createdAt', 'asc')
       // over-fetch so filtering empty journals still fills the page
       .limit(opts.includeEmpty ? limit : limit * 3)
-      .execute();
+      .execute()
+      .then((r) => this.onlyViewable(user, r));
     let items = rows.map((r) => this.toRef(r));
     if (!opts.includeEmpty) items = items.filter((i) => !i.isEmpty);
     return { items: items.slice(0, limit) };
@@ -392,6 +411,10 @@ export class JournalService {
     if (isNaN(s.getTime()) || isNaN(e.getTime()) || e <= s) {
       throw new BadRequestException('start and end must be ISO timestamps');
     }
+    // one local day, with slack for DST and time zones
+    if (e.getTime() - s.getTime() > 48 * 3600 * 1000) {
+      throw new BadRequestException('range must be at most 48 hours');
+    }
     const rows = await this.db
       .selectFrom('pages as p')
       .innerJoin('spaces as s', 's.id', 'p.spaceId')
@@ -421,7 +444,8 @@ export class JournalService {
       )
       .orderBy('p.updatedAt', 'desc')
       .limit(50)
-      .execute();
+      .execute()
+      .then((r) => this.onlyViewable(user, r));
 
     const created = rows.filter(
       (r) => new Date(r.createdAt) >= s && new Date(r.createdAt) < e,
